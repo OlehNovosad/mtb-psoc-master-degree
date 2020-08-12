@@ -1,7 +1,9 @@
 #ifndef PROJECT_H
 #define PROJECT_H
 
-void Init_Thermistor();
-float Get_Themperature();
+void init_thermistor();
+float get_themperature();
 
+void init_eink();
+void eink_greeting();
 #endif

@@ -9,7 +9,7 @@ mtb_thermistor_ntc_gpio_cfg_t thermistor_cfg = {
     .r_infinity = CY8CKIT_028_EPD_THERM_R_INFINITY,
 };
 
-void Init_Thermistor()
+void init_thermistor()
 {
 
     /* Intialize adc */
@@ -23,7 +23,7 @@ void Init_Thermistor()
     // return result;
 }
 
-float Get_Themperature()
+float get_themperature()
 {
     float temperature;
     temperature = mtb_thermistor_ntc_gpio_get_temp(&thermistor);

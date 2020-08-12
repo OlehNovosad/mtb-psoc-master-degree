@@ -2,6 +2,14 @@
 #include "cyhal.h"
 #include "cybsp.h"
 #include "cy_retarget_io.h"
+#include "cy_lwip.h"
+#include "cybsp_wifi.h"
+#include "cy_secure_sockets.h"
+
+#include "lwip/tcpip.h"
+#include "lwip/api.h"
+#include "FreeRTOS.h"
+#include "task.h"
 
 #include "project.h"
 

@@ -3,7 +3,14 @@
 #include "cybsp.h"
 #include "cy_retarget_io.h"
 
-#include "project.h"
+#include "FreeRTOS.h"
+#include "task.h"
+
+#include "thermistor.h"
+#include "display.h"
+#include "network.h"
+
+void Executor();
 
 int main(void)
 {
@@ -18,21 +25,24 @@ int main(void)
 
     __enable_irq();
 
-    /* Initialize ADC and Thermistor */
-    init_thermistor();
-
     /* Initialize UART */
     cy_retarget_io_init(CYBSP_DEBUG_UART_TX, CYBSP_DEBUG_UART_RX, CY_RETARGET_IO_BAUDRATE);
 
-    init_eink();
-    eink_greeting();
+    xTaskCreate(Executor, "Executor", 1024, NULL, 5, NULL);
+    
+    vTaskStartScheduler();
 
     for (;;)
     {
-        /* Measure the temperature and send the value via UART */
-        printf("Temperature = %.3fC\r\n", get_themperature());
-        cyhal_system_delay_ms(1000);
     }
+}
+
+void Executor()
+{
+    eink_greeting();
+    vTaskDelay(5000);
+    connectWifi();
+    vTaskDelay(5000);
 }
 
 /* [] END OF FILE */

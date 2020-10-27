@@ -4,9 +4,6 @@
 #include "cy8ckit_028_epd_pins.h"
 #include "stdio.h"
 
-#include "FreeRTOS.h"
-#include "task.h"
-
 cyhal_spi_t spi;
 
 const mtb_e2271cs021_pins_t pins =
@@ -92,6 +89,30 @@ void success_connection(char *device_ip)
     GUI_DispStringAt("Connected to Wi-Fi", LCD_GetXSize() / 2, 50);
     GUI_SetTextAlign(GUI_ALIGN_HCENTER | GUI_ALIGN_HCENTER);
     sprintf(str, "IP: %s", device_ip);
+    GUI_DispStringAt(str, LCD_GetXSize() / 2, 85);
+    /* update the display */
+    mtb_e2271cs021_show_frame(previous_frame, current_frame, MTB_E2271CS021_FULL_4STAGE, true);
+
+    deinit_eink();
+}
+
+void print_eink(char *message)
+{
+    init_eink();
+    char str[30];
+
+    current_frame = (uint8_t *)LCD_GetDisplayBuffer();
+
+    GUI_Init();
+    GUI_SetTextMode(GUI_TM_NORMAL);
+    GUI_SetFont(GUI_FONT_24B_ASCII);
+    GUI_SetBkColor(GUI_WHITE);
+    GUI_SetColor(GUI_BLACK);
+    GUI_SetTextAlign(GUI_ALIGN_HCENTER | GUI_ALIGN_HCENTER);
+    GUI_Clear();
+
+    GUI_SetTextAlign(GUI_ALIGN_HCENTER | GUI_ALIGN_HCENTER);
+    sprintf(str, "%s", message);
     GUI_DispStringAt(str, LCD_GetXSize() / 2, 85);
     /* update the display */
     mtb_e2271cs021_show_frame(previous_frame, current_frame, MTB_E2271CS021_FULL_4STAGE, true);

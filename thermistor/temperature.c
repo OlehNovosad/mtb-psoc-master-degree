@@ -23,9 +23,8 @@ void init_thermistor()
     // return result;
 }
 
-float get_themperature()
+float get_themperature(float temperature)
 {
-    float temperature;
     temperature = mtb_thermistor_ntc_gpio_get_temp(&thermistor);
 
     return temperature;

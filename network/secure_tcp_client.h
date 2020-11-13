@@ -11,7 +11,7 @@
 /* Change the server IP address to match the TCP server address (IP address
  * of the PC).
  */
-#define TCP_SERVER_IP_ADDRESS MAKE_IPV4_ADDRESS(192, 168, 1, 148)
+#define TCP_SERVER_IP_ADDRESS MAKE_IPV4_ADDRESS(10, 0, 0, 6)
 
 #define TCP_SERVER_PORT (50007)
 
@@ -24,10 +24,12 @@
 /* Length of the LED ON/OFF command issued from the TCP server. */
 #define TCP_LED_CMD_LEN (1)
 
-#define RED_LED (P13_7)
-
 /* TCP client socket handle */
 cy_socket_t client_handle;
+
+#define RED_LED (P0_3)
+#define GREEN_LED (P1_1)
+#define BLUE_LED (P11_1)
 
 /*******************************************************************************
 * Function Prototype

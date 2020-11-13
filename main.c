@@ -32,10 +32,6 @@ int main(void)
     /* Initialize UART */
     cy_retarget_io_init(CYBSP_DEBUG_UART_TX, CYBSP_DEBUG_UART_RX, CY_RETARGET_IO_BAUDRATE);
 
-    /* Initialize the User LED. */
-    cyhal_gpio_init(CYBSP_USER_LED, CYHAL_GPIO_DIR_OUTPUT,
-                    CYHAL_GPIO_DRIVE_STRONG, CYBSP_LED_STATE_OFF);
-
     /* \x1b[2J\x1b[;H - ANSI ESC sequence to clear screen */
     printf("\x1b[2J\x1b[;H");
     printf("===============================================================\n");
@@ -64,6 +60,10 @@ void master_degree()
 
     /* Initialize the User LED. */
     cyhal_gpio_init(RED_LED, CYHAL_GPIO_DIR_OUTPUT,
+                    CYHAL_GPIO_DRIVE_STRONG, CYBSP_LED_STATE_OFF);
+    cyhal_gpio_init(GREEN_LED, CYHAL_GPIO_DIR_OUTPUT,
+                    CYHAL_GPIO_DRIVE_STRONG, CYBSP_LED_STATE_OFF);
+    cyhal_gpio_init(BLUE_LED, CYHAL_GPIO_DIR_OUTPUT,
                     CYHAL_GPIO_DRIVE_STRONG, CYBSP_LED_STATE_OFF);
 
     /* Connect to Wi-Fi AP */

@@ -47,12 +47,15 @@ while 1:
                 data = connstream.read(4096)
                 print("Acknowledgement from TCP Client:", data.decode('utf-8'))
                 print("")
-                if (float(data) < 30.0):
+                if (float(data) < 27.0):
                     print('0')
                     connstream.write(str('0').encode())
-                else:
+                elif ((float(data) > 27.0) and (float(data) < 30.0)):
                     print('1')
                     connstream.write(str('1').encode())
+                elif (float(data) > 30.0):
+                    print('2')
+                    connstream.write(str('2').encode())
 
                 # if not data: break
                 

@@ -41,10 +41,6 @@ int main(void)
     xTaskCreate(master_degree, "master_degree", 1024, NULL, 5, NULL);
 
     vTaskStartScheduler();
-
-    for (;;)
-    {
-    }
 }
 
 void master_degree()

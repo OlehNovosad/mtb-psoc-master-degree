@@ -16,7 +16,7 @@
 #define TCP_SERVER_PORT (50007)
 
 /* Maximum number of connection retries to the TCP server. */
-#define MAX_TCP_SERVER_CONN_RETRIES (5)
+#define MAX_TCP_SERVER_CONN_RETRIES (3)
 
 /* Length of the TCP data packet. */
 #define MAX_TCP_DATA_PACKET_LENGTH (20)

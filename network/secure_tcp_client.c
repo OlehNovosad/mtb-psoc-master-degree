@@ -79,7 +79,7 @@ cy_rslt_t tcp_secure_client_task(bool _wifi)
     bool _sockets = false;
     float temperature = 0.0;
     uint32_t bytes_sent = 0;
-    char message[50];
+    uint32_t bytes_recv = 0;
     char char_temperature[5];
 
     /* IP address and TCP port number of the TCP server to which the TCP client
@@ -194,20 +194,27 @@ cy_rslt_t tcp_secure_client_task(bool _wifi)
                    (uint16_t)_time.tm_mday, (uint16_t)_time.tm_mon, (uint16_t)_time.tm_year,
                    (uint16_t)_time.tm_hour, (uint16_t)_time.tm_min, (uint16_t)_time.tm_sec, temperature);
 
-            sprintf(message, "<%2u-%2u-%2u %2u:%2u:%2u> %.2f\n",
-                    (uint16_t)_time.tm_mday, (uint16_t)_time.tm_mon, (uint16_t)_time.tm_year,
-                    (uint16_t)_time.tm_hour, (uint16_t)_time.tm_min, (uint16_t)_time.tm_sec, temperature);
-
             if ((_time.tm_sec % 30) == 0)
             {
+                // memset(message, 0, sizeof(message));
+                char *message;
+                message = (char *)malloc(50 * sizeof(char));
+
+                sprintf(message, "<%2u-%2u-%2u %2u:%2u:%2u> %.2f\n",
+                        (uint16_t)_time.tm_mday, (uint16_t)_time.tm_mon, (uint16_t)_time.tm_year,
+                        (uint16_t)_time.tm_hour, (uint16_t)_time.tm_min, (uint16_t)_time.tm_sec, temperature);
+
                 print_eink(message);
+                free(message);
             }
-            else if (_sockets)
+
+            if (_sockets)
             {
+                memset(char_temperature, 0, sizeof(char_temperature));
                 sprintf(char_temperature, "%.2f", temperature);
                 cy_socket_send(client_handle, char_temperature, strlen(char_temperature), 0, &bytes_sent);
                 memset(char_temperature, 0, sizeof(char_temperature));
-                result = cy_socket_recv(client_handle, char_temperature, 1, 0, &bytes_sent);
+                result = cy_socket_recv(client_handle, char_temperature, 1, 0, &bytes_recv);
                 if (result == CY_RSLT_SUCCESS)
                 {
                     printf("MESSAGE FROM SERVER: %s\n", char_temperature);
@@ -234,10 +241,9 @@ cy_rslt_t tcp_secure_client_task(bool _wifi)
                         printf("RED LED turned ON\n");
                     }
                 }
+                bytes_sent = 0;
+                bytes_recv = 0;
             }
-            printf("--------BEFORE CLEAN\n");
-            memset(message, 0, sizeof(message));
-            memset(char_temperature, 0, sizeof(char_temperature));
         }
     }
 
@@ -261,7 +267,6 @@ cy_rslt_t create_secure_tcp_client_socket()
     cy_rslt_t result;
 
     /* Variables used to set socket options. */
-    cy_socket_opt_callback_t tcp_recv_option;
     cy_socket_opt_callback_t tcp_disconnection_option;
 
     /* TLS authentication mode.*/

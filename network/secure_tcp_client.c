@@ -23,12 +23,15 @@
 
 /* Wi-Fi credentials and TCP port settings header file. */
 #include "credentials.h"
+#include "thermistor.h"
+#include "display.h"
 
 /******************************************************************************
 * Macros
 ******************************************************************************/
-#define LED_ON_CMD '1'
-#define LED_OFF_CMD '0'
+#define BLUE_LED_ON_CMD '0'
+#define LED_OFF_CMD '1'
+#define RED_LED_ON_CMD '2'
 
 /******************************************************************************
 * Function Prototypes
@@ -52,9 +55,6 @@ static const char tcp_server_ca_cert[] = keySERVER_ROOTCA_PEM;
 /* Variable to store the TLS identity (certificate and private key).*/
 void *tls_identity;
 
-/* TCP client socket handle */
-cy_socket_t client_handle;
-
 /* Binary semaphore handle to keep track of secure TCP server connection. */
 SemaphoreHandle_t connect_to_server;
 
@@ -72,9 +72,15 @@ SemaphoreHandle_t connect_to_server;
  *  void
  *
  *******************************************************************************/
-cy_rslt_t tcp_secure_client_task()
+cy_rslt_t tcp_secure_client_task(bool _wifi)
 {
     cy_rslt_t result;
+
+    bool _sockets = false;
+    float temperature = 0.0;
+    uint32_t bytes_sent = 0;
+    uint32_t bytes_recv = 0;
+    char char_temperature[5];
 
     /* IP address and TCP port number of the TCP server to which the TCP client
      * connects to. */
@@ -94,50 +100,151 @@ cy_rslt_t tcp_secure_client_task()
     const size_t tcp_client_cert_len = strlen(tcp_client_cert);
     const size_t pkey_len = strlen(client_private_key);
 
-    /* Initialize secure socket library. */
-    result = cy_socket_init();
-    if (result != CY_RSLT_SUCCESS)
-    {
-        printf("Secure Socket initialization failed!\n");
-        CY_ASSERT(0);
-    }
-    printf("Secure Socket initialized\n");
+    /* Initialize RTC */
+    cyhal_rtc_t rtc_object;
+    cyhal_rtc_init(&rtc_object);
 
-    /* Initializes the global trusted RootCA certificate. This examples uses a self signed
+    struct tm _time =
+        {
+            .tm_sec = 0,
+            .tm_min = 0,
+            .tm_hour = 0,
+            .tm_mday = 1,
+            .tm_mon = 1,
+            .tm_year = 20,
+            .tm_wday = 0,
+            .tm_yday = 0,
+            .tm_isdst = 0,
+        };
+
+    cyhal_rtc_write(&rtc_object, &_time);
+
+    uint32_t prevSec = CY_RTC_MAX_SEC_OR_MIN + 1;
+
+    if (_wifi)
+    {
+        /* Initialize secure socket library. */
+        result = cy_socket_init();
+        if (result != CY_RSLT_SUCCESS)
+        {
+            printf("Secure Socket initialization failed!\n");
+            CY_ASSERT(0);
+        }
+        printf("Secure Socket initialized\n");
+
+        /* Initializes the global trusted RootCA certificate. This examples uses a self signed
      * certificate which implies that the RootCA certificate is same as the certificate of
      * TCP secure server to which client is connecting to.
      */
-    result = cy_tls_load_global_root_ca_certificates(tcp_server_ca_cert, strlen(tcp_server_ca_cert));
-    if (result != CY_RSLT_SUCCESS)
-    {
-        printf("cy_tls_load_global_root_ca_certificates failed! Error code: %lu\n", result);
-    }
-    else
-    {
-        printf("Global trusted RootCA certificate loaded\n");
+        result = cy_tls_load_global_root_ca_certificates(tcp_server_ca_cert, strlen(tcp_server_ca_cert));
+        if (result != CY_RSLT_SUCCESS)
+        {
+            printf("cy_tls_load_global_root_ca_certificates failed! Error code: %lu\n", result);
+        }
+        else
+        {
+            printf("Global trusted RootCA certificate loaded\n");
+        }
+
+        /* Create TCP client identity using the SSL certificate and private key. */
+        result = cy_tls_create_identity(tcp_client_cert, tcp_client_cert_len,
+                                        client_private_key, pkey_len, &tls_identity);
+        if (result != CY_RSLT_SUCCESS)
+        {
+            printf("Failed cy_tls_create_identity! Error code: %lu\n", result);
+            CY_ASSERT(0);
+        }
     }
 
-    /* Create TCP client identity using the SSL certificate and private key. */
-    result = cy_tls_create_identity(tcp_client_cert, tcp_client_cert_len,
-                                    client_private_key, pkey_len, &tls_identity);
-    if (result != CY_RSLT_SUCCESS)
+    if (_wifi)
     {
-        printf("Failed cy_tls_create_identity! Error code: %lu\n", result);
-        CY_ASSERT(0);
-    }
+        /* Wait till semaphore is acquired so as to connect to a secure TCP server. */
+        xSemaphoreTake(connect_to_server, portMAX_DELAY);
 
-    /* Wait till semaphore is acquired so as to connect to a secure TCP server. */
-    xSemaphoreTake(connect_to_server, portMAX_DELAY);
-
-    /* Connect to the secure TCP server. If the connection fails, retry
+        /* Connect to the secure TCP server. If the connection fails, retry
          * to connect to the server for MAX_TCP_SERVER_CONN_RETRIES times. */
-    printf("Connecting to TCP server...\n");
-    result = connect_to_secure_tcp_server(tcp_server_address);
+        printf("Connecting to TCP server...\n");
+        result = connect_to_secure_tcp_server(tcp_server_address);
 
-    if (result != CY_RSLT_SUCCESS)
+        if (result != CY_RSLT_SUCCESS)
+        {
+            printf("Failed to connect to TCP server. Error code: %lu\n", result);
+            _sockets = false;
+        }
+        else
+        {
+            _sockets = true;
+        }
+        _wifi = false;
+    }
+
+    for (;;)
     {
-        printf("Failed to connect to TCP server. Error code: %lu\n", result);
-        CY_ASSERT(0);
+        cyhal_rtc_read(&rtc_object, &_time);
+
+        /* Get current date and time */
+        if (_time.tm_sec != prevSec)
+        {
+            // Remembering the previous second.
+            prevSec = _time.tm_sec;
+
+            temperature = get_themperature(temperature);
+            // Print out the date and time.
+            printf("<%2u-%2u-%2u %2u:%2u:%2u> %.2f\n",
+                   (uint16_t)_time.tm_mday, (uint16_t)_time.tm_mon, (uint16_t)_time.tm_year,
+                   (uint16_t)_time.tm_hour, (uint16_t)_time.tm_min, (uint16_t)_time.tm_sec, temperature);
+
+            if ((_time.tm_sec % 30) == 0)
+            {
+                // memset(message, 0, sizeof(message));
+                char *message;
+                message = (char *)malloc(50 * sizeof(char));
+
+                sprintf(message, "<%2u-%2u-%2u %2u:%2u:%2u> %.2f\n",
+                        (uint16_t)_time.tm_mday, (uint16_t)_time.tm_mon, (uint16_t)_time.tm_year,
+                        (uint16_t)_time.tm_hour, (uint16_t)_time.tm_min, (uint16_t)_time.tm_sec, temperature);
+
+                print_eink(message);
+                free(message);
+            }
+
+            if (_sockets)
+            {
+                memset(char_temperature, 0, sizeof(char_temperature));
+                sprintf(char_temperature, "%.2f", temperature);
+                cy_socket_send(client_handle, char_temperature, strlen(char_temperature), 0, &bytes_sent);
+                memset(char_temperature, 0, sizeof(char_temperature));
+                result = cy_socket_recv(client_handle, char_temperature, 1, 0, &bytes_recv);
+                if (result == CY_RSLT_SUCCESS)
+                {
+                    printf("MESSAGE FROM SERVER: %s\n", char_temperature);
+
+                    if (char_temperature[0] == BLUE_LED_ON_CMD)
+                    {
+                        /* Turn the BLUE LED ON. */
+                        cyhal_gpio_write(RED_LED, CYBSP_LED_STATE_OFF);
+                        cyhal_gpio_write(BLUE_LED, CYBSP_LED_STATE_ON);
+                        printf("BLUE LED turned ON\n");
+                    }
+                    else if (char_temperature[0] == LED_OFF_CMD)
+                    {
+                        /* Turn the LED OFF. */
+                        cyhal_gpio_write(BLUE_LED, CYBSP_LED_STATE_OFF);
+                        cyhal_gpio_write(RED_LED, CYBSP_LED_STATE_OFF);
+                        printf("ALL LED turned OFF\n");
+                    }
+                    else if (char_temperature[0] == RED_LED_ON_CMD)
+                    {
+                        /* Turn the RED LED ON. */
+                        cyhal_gpio_write(BLUE_LED, CYBSP_LED_STATE_OFF);
+                        cyhal_gpio_write(RED_LED, CYBSP_LED_STATE_ON);
+                        printf("RED LED turned ON\n");
+                    }
+                }
+                bytes_sent = 0;
+                bytes_recv = 0;
+            }
+        }
     }
 
     return result;
@@ -160,7 +267,6 @@ cy_rslt_t create_secure_tcp_client_socket()
     cy_rslt_t result;
 
     /* Variables used to set socket options. */
-    cy_socket_opt_callback_t tcp_recv_option;
     cy_socket_opt_callback_t tcp_disconnection_option;
 
     /* TLS authentication mode.*/
@@ -173,20 +279,6 @@ cy_rslt_t create_secure_tcp_client_socket()
     if (result != CY_RSLT_SUCCESS)
     {
         printf("Failed to create socket! Error Code: %lu\n", result);
-        return result;
-    }
-
-    /* Register the callback function to handle messages received from TCP server. */
-    tcp_recv_option.callback = tcp_client_recv_handler;
-    tcp_recv_option.arg = NULL;
-    result = cy_socket_setsockopt(client_handle, CY_SOCKET_SOL_SOCKET,
-                                  CY_SOCKET_SO_RECEIVE_CALLBACK,
-                                  &tcp_recv_option, sizeof(cy_socket_opt_callback_t));
-    if (result != CY_RSLT_SUCCESS)
-    {
-        printf("Set socket option: CY_SOCKET_SO_RECEIVE_CALLBACK failed! "
-               "Error Code: %lu\n",
-               result);
         return result;
     }
 
@@ -275,50 +367,6 @@ cy_rslt_t connect_to_secure_tcp_server(cy_socket_sockaddr_t address)
 
     /* Stop retrying after maximum retry attempts. */
     printf("Exceeded maximum connection attempts to the TCP server\n");
-
-    return result;
-}
-
-/*******************************************************************************
- * Function Name: tcp_client_recv_handler
- *******************************************************************************
- * Summary:
- *  Callback function to handle incoming TCP server messages.
- *
- * Parameters:
- *  cy_socket_t socket_handle: Connection handle for the TCP client socket
- *  void *args : Parameter passed on to the function (unused)
- *
- * Return:
- *  cy_result result: Result of the operation
- *
- *******************************************************************************/
-cy_rslt_t tcp_client_recv_handler(cy_socket_t socket_handle, void *arg)
-{
-    /* Variable to store number of bytes received. */
-    uint32_t bytes_received = 0;
-
-    char message_buffer[MAX_TCP_DATA_PACKET_LENGTH];
-    cy_rslt_t result;
-
-    printf("============================================================\n");
-    result = cy_socket_recv(socket_handle, message_buffer, TCP_LED_CMD_LEN,
-                            CY_SOCKET_FLAGS_NONE, &bytes_received);
-
-    printf("MESSAGE FROM SERVER: %s\n", message_buffer);
-
-    if (message_buffer[0] == LED_ON_CMD)
-    {
-        /* Turn the LED ON. */
-        cyhal_gpio_write(CYBSP_USER_LED, CYBSP_LED_STATE_ON);
-        printf("LED turned ON\n");
-    }
-    else if (message_buffer[0] == LED_OFF_CMD)
-    {
-        /* Turn the LED OFF. */
-        cyhal_gpio_write(CYBSP_USER_LED, CYBSP_LED_STATE_OFF);
-        printf("LED turned OFF\n");
-    }
 
     return result;
 }

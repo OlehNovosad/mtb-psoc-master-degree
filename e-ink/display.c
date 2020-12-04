@@ -78,7 +78,6 @@ void success_connection(char *device_ip)
 
     current_frame = (uint8_t *)LCD_GetDisplayBuffer();
 
-    GUI_Init();
     GUI_SetTextMode(GUI_TM_NORMAL);
     GUI_SetFont(GUI_FONT_24B_ASCII);
     GUI_SetBkColor(GUI_WHITE);
@@ -103,7 +102,6 @@ void print_eink(char *message)
 
     current_frame = (uint8_t *)LCD_GetDisplayBuffer();
 
-    GUI_Init();
     GUI_SetTextMode(GUI_TM_NORMAL);
     GUI_SetFont(GUI_FONT_24B_ASCII);
     GUI_SetBkColor(GUI_WHITE);

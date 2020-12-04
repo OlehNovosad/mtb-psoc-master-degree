@@ -11,7 +11,7 @@
 /* Change the server IP address to match the TCP server address (IP address
  * of the PC).
  */
-#define TCP_SERVER_IP_ADDRESS MAKE_IPV4_ADDRESS(10, 0, 0, 6)
+#define TCP_SERVER_IP_ADDRESS MAKE_IPV4_ADDRESS(10, 0, 0, 4)
 
 #define TCP_SERVER_PORT (50007)
 
